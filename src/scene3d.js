@@ -849,6 +849,26 @@ export const TOUR_STEPS = [
   }
 ];
 
+export function resolveAudioUrl(relPath) {
+  if (!relPath) return '';
+  const clean = relPath.replace(/^(\.\/|\/)/, '');
+  if (typeof window === 'undefined') return relPath;
+  try {
+    const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) ? import.meta.env.BASE_URL : './';
+    const normalizedBase = base.endsWith('/') ? base : base + '/';
+    return new URL(clean, new URL(normalizedBase, window.location.href)).href;
+  } catch (e) {
+    try {
+      const path = window.location.pathname.endsWith('/')
+        ? window.location.pathname
+        : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+      return window.location.origin + path + clean;
+    } catch (e2) {
+      return relPath;
+    }
+  }
+}
+
 export class EnergyWorld3D {
   constructor(container, { onSelect = () => {}, onTourChange = () => {}, onEvent = () => {} } = {}) {
     this.container = container;
@@ -923,6 +943,26 @@ export class EnergyWorld3D {
     this.buildSystem();
     this.buildPowerPaths();
     this.attachEvents();
+
+    // Fullscreen listeners & Escape key handler
+    this.onFullscreenChange = () => {
+      const isNativeFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      if (!isNativeFull && this.container.classList.contains('fake-fullscreen')) {
+        // fake fullscreen active
+      } else {
+        this.updateFullscreenUI(isNativeFull);
+      }
+      this.triggerFullscreenResize();
+    };
+    document.addEventListener('fullscreenchange', this.onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', this.onFullscreenChange);
+
+    this.onKeyDown = (e) => {
+      if (e.key === 'Escape' && this.container.classList.contains('fake-fullscreen')) {
+        this.exitFullscreen();
+      }
+    };
+    window.addEventListener('keydown', this.onKeyDown);
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(this.container);
@@ -2574,35 +2614,112 @@ export class EnergyWorld3D {
     this.stopAudio();
     if (!this.voiceEnabled) return;
 
-    if (step.audioFile) {
-      this.currentAudio = new Audio(step.audioFile);
-      this.currentAudio.play().catch(err => {
-        console.warn('Audio play auto-policy warning:', err);
-      });
+    let hasStartedAudio = false;
+    const narrationText = step.narration;
 
-      this.currentAudio.onended = () => {
+    const playFallbackTTS = () => {
+      if (hasStartedAudio) return;
+      hasStartedAudio = true;
+      this.speakNarration(narrationText);
+    };
+
+    if (step.audioFile) {
+      const audioUrl = resolveAudioUrl(step.audioFile);
+      const audio = new Audio(audioUrl);
+      this.currentAudio = audio;
+
+      const fallbackTimer = setTimeout(() => {
+        if (!hasStartedAudio && this.tourPlaying) {
+          playFallbackTTS();
+        }
+      }, 2000);
+
+      audio.addEventListener('playing', () => {
+        hasStartedAudio = true;
+        clearTimeout(fallbackTimer);
+      }, { once: true });
+
+      audio.addEventListener('ended', () => {
         if (this.tourPlaying) {
-          // Pause 1.4s after natural narration ends, then advance smoothly!
+          this.tourTimer = setTimeout(() => {
+            if (this.tourPlaying) this.nextTourStep();
+          }, 1400);
+        }
+      }, { once: true });
+
+      audio.addEventListener('error', (err) => {
+        console.warn('Audio file failed to load, switching to Arabic SpeechSynthesis:', audioUrl, err);
+        clearTimeout(fallbackTimer);
+        playFallbackTTS();
+      }, { once: true });
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn('Audio play() blocked by browser policy:', err);
+          clearTimeout(fallbackTimer);
+          playFallbackTTS();
+        });
+      }
+    } else {
+      playFallbackTTS();
+    }
+  }
+
+  speakNarration(text) {
+    if (!this.voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ar-SA';
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const arabicVoice = voices.find(v => v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar')));
+      if (arabicVoice) {
+        utterance.voice = arabicVoice;
+      }
+
+      utterance.onend = () => {
+        if (this.tourPlaying) {
           this.tourTimer = setTimeout(() => {
             if (this.tourPlaying) this.nextTourStep();
           }, 1400);
         }
       };
+
+      utterance.onerror = (e) => {
+        console.warn('SpeechSynthesis error:', e);
+        if (this.tourPlaying) {
+          this.tourTimer = setTimeout(() => {
+            if (this.tourPlaying) this.nextTourStep();
+          }, 4000);
+        }
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn('SpeechSynthesis failed:', e);
     }
   }
 
   stopAudio() {
     if (this.currentAudio) {
-      this.currentAudio.pause();
-      this.currentAudio.currentTime = 0;
+      try {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+      } catch (e) {}
       this.currentAudio = null;
     }
     if (this.tourTimer) {
       clearTimeout(this.tourTimer);
       this.tourTimer = null;
     }
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {}
     }
   }
 
@@ -2639,11 +2756,83 @@ export class EnergyWorld3D {
   }
 
   toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      this.container.requestFullscreen?.() || this.container.webkitRequestFullscreen?.();
+    const isFull = !!(
+      document.fullscreenElement || 
+      document.webkitFullscreenElement || 
+      this.container.classList.contains('fake-fullscreen')
+    );
+    if (isFull) {
+      this.exitFullscreen();
     } else {
-      document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+      this.enterFullscreen();
     }
+  }
+
+  enterFullscreen() {
+    const el = this.container;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+
+    if (req) {
+      try {
+        const p = req.call(el);
+        if (p && p.catch) {
+          p.catch(() => {
+            this.enableFakeFullscreen();
+          });
+        }
+      } catch (e) {
+        this.enableFakeFullscreen();
+      }
+    } else {
+      // Mobile Safari / iOS fallback
+      this.enableFakeFullscreen();
+    }
+    this.updateFullscreenUI(true);
+  }
+
+  exitFullscreen() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      try {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+        exit?.call(document);
+      } catch (e) {}
+    }
+    this.disableFakeFullscreen();
+    this.updateFullscreenUI(false);
+  }
+
+  enableFakeFullscreen() {
+    this.container.classList.add('fake-fullscreen');
+    document.body.classList.add('has-fullscreen-canvas');
+    this.triggerFullscreenResize();
+  }
+
+  disableFakeFullscreen() {
+    this.container.classList.remove('fake-fullscreen');
+    document.body.classList.remove('has-fullscreen-canvas');
+    this.triggerFullscreenResize();
+  }
+
+  triggerFullscreenResize() {
+    setTimeout(() => this.resize(), 60);
+    setTimeout(() => this.resize(), 200);
+    setTimeout(() => this.resize(), 450);
+  }
+
+  updateFullscreenUI(isFullscreen) {
+    const btns = document.querySelectorAll('[data-action="fullscreen"]');
+    btns.forEach(btn => {
+      if (btn.classList.contains('mobile-fab-btn')) {
+        const icon = btn.querySelector('.fab-icon');
+        const label = btn.querySelector('.fab-label');
+        if (icon) icon.textContent = isFullscreen ? '✕' : '⛶';
+        if (label) label.textContent = isFullscreen ? 'تصغير' : 'شاشة';
+        btn.title = isFullscreen ? 'إلغاء ملء الشاشة' : 'ملء الشاشة';
+      } else {
+        btn.textContent = isFullscreen ? '✕' : '⛶';
+        btn.title = isFullscreen ? 'إلغاء ملء الشاشة' : 'ملء الشاشة';
+      }
+    });
   }
 
   triggerAtsSpark() {
@@ -2913,6 +3102,14 @@ export class EnergyWorld3D {
     cancelAnimationFrame(this.frameId);
     if (this.cameraAnimation) cancelAnimationFrame(this.cameraAnimation);
     this.stopAudio();
+    if (this.onFullscreenChange) {
+      document.removeEventListener('fullscreenchange', this.onFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', this.onFullscreenChange);
+    }
+    if (this.onKeyDown) {
+      window.removeEventListener('keydown', this.onKeyDown);
+    }
+    this.disableFakeFullscreen();
     this.resizeObserver?.disconnect();
     this.renderer.domElement.removeEventListener('pointerdown', this.pointerDown);
     this.controls.dispose();

@@ -1466,6 +1466,11 @@ function handleClick(event) {
           const isHidden = tourPlayer.classList.contains('hidden');
           tourPlayer.classList.toggle('hidden', !isHidden);
           tourPlayer.classList.toggle('mobile-tour-visible', isHidden);
+          if (isHidden && world) {
+            world.startTour();
+          } else if (!isHidden && world && world.tourPlaying) {
+            world.pauseTour();
+          }
         }
       }
       break;
