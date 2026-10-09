@@ -739,7 +739,20 @@ function dashboardPage() {
     ${footer()}`;
 }
 
-function componentInspectorHTML(id = state.selectedId) {
+function componentInspectorHTML(id = state.selectedId || 'solar') {
+  const quickChips = `
+    <div class="msg-chips-row">
+      <button class="msg-chip ${id==='solar'?'active':''}" data-inspect="solar">☀️ الألواح</button>
+      <button class="msg-chip ${id==='battery'?'active':''}" data-inspect="battery">🔋 البطارية</button>
+      <button class="msg-chip ${id==='mppt'?'active':''}" data-inspect="mppt">⚡ MPPT</button>
+      <button class="msg-chip ${id==='inverter'?'active':''}" data-inspect="inverter">🔄 العاكس</button>
+      <button class="msg-chip ${id==='ats'?'active':''}" data-inspect="ats">🔀 مفتاح ATS</button>
+      <button class="msg-chip ${id==='icu'?'active':''}" data-inspect="icu">🫁 العناية</button>
+      <button class="msg-chip ${id==='grid'?'active':''}" data-inspect="grid">🏢 الشبكة</button>
+      <button class="msg-chip ${id==='ats-icu'?'active':''}" data-inspect="ats-icu">🔌 خط IPS</button>
+    </div>
+  `;
+
   if (CABLE_SPECS[id]) {
     const cable = CABLE_SPECS[id];
     const d = derived();
@@ -772,33 +785,128 @@ function componentInspectorHTML(id = state.selectedId) {
       }
     }
 
-    return `<div class="inspector-hero" style="border-right:4px solid var(--green)">
-      <div class="inspector-icon" style="background:#13332e;color:#33d6a6">⚡</div>
-      <span class="tag blue">${cable.category}</span>
-      <h2 class="inspector-title" style="margin-top:10px">${cable.title}</h2>
-      <div class="inspector-en">${cable.en}</div>
-      <div class="inspector-desc">${cable.description}</div>
-    </div>
-    <section class="panel">
-      <div class="panel-heading"><h3 class="panel-title">المواصفات الكهربائية والهندسية</h3>${statusBadge}</div>
-      <div class="spec-list">
-        <div class="spec-row"><span>المعيار القياسي</span><strong class="mono">${cable.standard}</strong></div>
-        <div class="spec-row"><span>الجهد الاسمي</span><strong class="mono">${cable.voltage}</strong></div>
-        <div class="spec-row"><span>القدرة اللحظية المنقولة</span><strong class="mono strong-green">${livePower}</strong></div>
-        <div class="spec-row"><span>التيار اللحظي المقدر</span><strong class="mono">${liveCurrent}</strong></div>
-        <div class="spec-row"><span>نوع العزل والغلاف</span><strong>${cable.insulation}</strong></div>
-        <div class="spec-row"><span>وسيلة الحماية</span><strong>${cable.protection}</strong></div>
+    return `
+      ${quickChips}
+      <div class="explainer-message-box">
+        <div class="msg-header-bar">
+          <div class="msg-icon-badge" style="background:#13332e;color:#33d6a6">⚡</div>
+          <div style="flex:1;min-width:0">
+            <span class="tag blue">${cable.category}</span>
+            <h3 class="msg-component-title">${cable.title}</h3>
+            <div class="msg-en-sub">${cable.en}</div>
+          </div>
+          <button class="msg-audio-btn" data-action="speak-explainer" title="استمع للشرح الصوتي">🔊 استمع للرسالة</button>
+        </div>
+        <div class="msg-bubble-content">
+          <div class="msg-bubble-prefix">💬 رسالة الشرح التوضيحي:</div>
+          <p class="msg-body-p">${cable.description}</p>
+        </div>
+        <div class="spec-list">
+          <div class="spec-row"><span>المعيار القياسي</span><strong class="mono">${cable.standard}</strong></div>
+          <div class="spec-row"><span>الجهد الاسمي</span><strong class="mono">${cable.voltage}</strong></div>
+          <div class="spec-row"><span>القدرة اللحظية المنقولة</span><strong class="mono strong-green">${livePower}</strong></div>
+          <div class="spec-row"><span>التيار اللحظي المقدر</span><strong class="mono">${liveCurrent}</strong></div>
+          <div class="spec-row"><span>نوع العزل والغلاف</span><strong>${cable.insulation}</strong></div>
+          <div class="spec-row"><span>وسيلة الحماية</span><strong>${cable.protection}</strong></div>
+        </div>
+        <div class="safety-note"><strong>🛡️ معيار الأمان الطبي:</strong> ممدد على مسارات مؤرضة ومعزولة بمادة مقاومة للهب وانخفاض انبعاث الدخان (LSZH) لضمان حماية أجهزة العناية المركزة والمرضى.</div>
       </div>
-      <div class="safety-note"><strong>معيار الأمان الطبي:</strong> ممدد على حوامل كابلات معدنية مجلفنة ومؤرضة مع عوازل مقاومة للهب وانخفاض انبعاث الدخان (LSZH) لضمان حماية أجهزة العناية المركزة والمرضى.</div>
-    </section>`;
+    `;
   }
+
   const component = COMPONENTS.find(c => c.id === id);
   const device = DEVICES.find(d => d.id === id);
   if (device) {
-    return `<div class="inspector-hero"><div class="inspector-icon">${deviceIcon(device.id)}</div><div class="tag blue">جهاز طبي · ${device.on?'نشط':'متوقف'}</div><h2 class="inspector-title" style="margin-top:10px">${device.name}</h2><div class="inspector-en">${device.en}</div><div class="inspector-desc">جهاز ضمن أحمال العناية المركزة في النموذج التعليمي. قيمة القدرة هي قيمة افتراضية مأخوذة من دراسة المشروع وليست مواصفة مؤكدة لكل طراز.</div></div><section class="panel"><div class="panel-heading"><h3 class="panel-title">معلومات الجهاز</h3><span class="tag muted">LOAD</span></div><div class="spec-list"><div class="spec-row"><span>القدرة الافتراضية</span><strong class="mono">${device.watts} W</strong></div><div class="spec-row"><span>الحالة الحالية</span><strong>${device.on?'قيد التشغيل':'متوقف'}</strong></div><div class="spec-row"><span>مساهمة الحمل</span><strong>${device.on?device.watts:0} W</strong></div></div><div class="safety-note">قبل تصميم الطاقة الاحتياطية، تحقّق من بيانات لوحة الجهاز، الاستهلاك الأقصى، تيار بدء التشغيل، ومتطلبات التشغيل الاحتياطي للرعاية الحرجة.</div></section>`;
+    return `
+      ${quickChips}
+      <div class="explainer-message-box">
+        <div class="msg-header-bar">
+          <div class="msg-icon-badge">${deviceIcon(device.id)}</div>
+          <div style="flex:1;min-width:0">
+            <span class="tag blue">جهاز طبي · ${device.on ? 'نشط' : 'متوقف'}</span>
+            <h3 class="msg-component-title">${device.name}</h3>
+            <div class="msg-en-sub">${device.en}</div>
+          </div>
+          <button class="msg-audio-btn" data-action="speak-explainer" title="استمع للشرح الصوتي">🔊 استمع للرسالة</button>
+        </div>
+        <div class="msg-bubble-content">
+          <div class="msg-bubble-prefix">💬 رسالة الشرح السريري:</div>
+          <p class="msg-body-p">هذا الجهاز أحد أحمال العناية المركزة الحيوية الموصولة بنظام التغذية المعزول IPS. استهلاكه المقدر ${device.watts} واط، ويعتمد كلياً على استمرارية الطاقة من العاكس والبطارية لمنع توقف الرعاية الحرجة للمريض.</p>
+        </div>
+        <div class="spec-list">
+          <div class="spec-row"><span>القدرة الافتراضية</span><strong class="mono">${device.watts} W</strong></div>
+          <div class="spec-row"><span>الحالة الحالية</span><strong>${device.on ? 'قيد التشغيل' : 'متوقف'}</strong></div>
+          <div class="spec-row"><span>مساهمة الحمل</span><strong class="mono strong-green">${device.on ? device.watts : 0} W</strong></div>
+        </div>
+        <div class="safety-note"><strong>🛡️ تنبيه سريري:</strong> في حال انقطاع التغذية، يجب أن يضمن نظام العاكس وATS استمرار عمل الجهاز دون أي إعادة تشغيل (Reboot).</div>
+      </div>
+    `;
   }
+
   const c = component || COMPONENTS[0];
-  return `<div class="inspector-hero"><div class="inspector-icon">${componentIcon(c.id)}</div><span class="tag blue">${c.family}</span><h2 class="inspector-title" style="margin-top:10px">${c.name}</h2><div class="inspector-en">${c.en}</div><div class="inspector-desc">${c.description}</div></div><section class="panel"><div class="panel-heading"><h3 class="panel-title">المواصفات الأساسية</h3><span class="tag muted">REFERENCE</span></div><div class="spec-list">${c.specs.map(([k,v])=>`<div class="spec-row"><span>${k}</span><strong>${v}</strong></div>`).join('')}</div><div class="safety-note"><strong>ملاحظة هندسية:</strong> ${c.safety}</div></section>`;
+  return `
+    ${quickChips}
+    <div class="explainer-message-box">
+      <div class="msg-header-bar">
+        <div class="msg-icon-badge">${componentIcon(c.id)}</div>
+        <div style="flex:1;min-width:0">
+          <span class="tag blue">${c.family}</span>
+          <h3 class="msg-component-title">${c.name}</h3>
+          <div class="msg-en-sub">${c.en}</div>
+        </div>
+        <button class="msg-audio-btn" data-action="speak-explainer" title="استمع للشرح الصوتي">🔊 استمع للرسالة</button>
+      </div>
+      <div class="msg-bubble-content">
+        <div class="msg-bubble-prefix">💬 رسالة الشرح الهندسي:</div>
+        <p class="msg-body-p">${c.description}</p>
+      </div>
+      <div class="spec-list">
+        ${c.specs.map(([k,v]) => `<div class="spec-row"><span>${k}</span><strong class="mono">${v}</strong></div>`).join('')}
+      </div>
+      <div class="safety-note"><strong>🛡️ معيار الأمان والموثوقية:</strong> ${c.safety}</div>
+    </div>
+  `;
+}
+
+function openExplainerMessage(targetId = state.selectedId || 'solar') {
+  state.selectedId = targetId;
+  state.selectedType = 'component';
+
+  if (state.page !== 'lab') {
+    state.page = 'lab';
+    renderPage();
+  }
+
+  // Smoothly move 3D camera to target and highlight it without unmounting Three.js!
+  if (world) {
+    world.select(targetId);
+  }
+
+  const html = componentInspectorHTML(targetId);
+  const name = getObjectName(targetId);
+
+  const desktopCard = document.querySelector('#glass-explainer');
+  const desktopContent = document.querySelector('#explainer-content');
+  const desktopHeading = document.querySelector('#explainer-heading');
+
+  if (desktopContent) desktopContent.innerHTML = html;
+  if (desktopHeading) desktopHeading.textContent = `رسالة الشرح: ${name}`;
+  if (desktopCard) {
+    desktopCard.classList.remove('hidden');
+    desktopCard.classList.remove('collapsed');
+  }
+
+  const mobileSheet = document.querySelector('#mobile-explainer-sheet');
+  const mobileContent = document.querySelector('#m-explainer-content');
+  const mobileHeading = document.querySelector('#m-explainer-heading');
+  const mobileBackdrop = document.querySelector('#mobile-explainer-backdrop');
+
+  if (mobileContent) mobileContent.innerHTML = html;
+  if (mobileHeading) mobileHeading.textContent = `رسالة الشرح: ${name}`;
+  if (mobileSheet && window.innerWidth <= 860) {
+    mobileSheet.classList.remove('hidden');
+    mobileBackdrop?.classList.remove('hidden');
+  }
 }
 
 function labPage() {
@@ -860,14 +968,14 @@ function labPage() {
           <button class="close-pill-btn" data-action="close-event">✕</button>
         </div>
 
-        <!-- Floating Interactive Component Explainer Glass Card (Hidden by default, opens on 3D click) -->
+        <!-- Floating Interactive Component Explainer Glass Card (Message Mode) -->
         <div class="glass-card glass-explainer-card hidden" id="glass-explainer">
           <div class="glass-card-header">
             <div style="display:flex;align-items:center;gap:8px">
-              <span class="g-icon">🔍</span>
-              <strong id="explainer-heading">الشرح الهندسي التفاعلي</strong>
+              <span class="g-icon" style="color:#38bdf8">💬</span>
+              <strong id="explainer-heading">رسالة الشرح التفاعلي</strong>
             </div>
-            <button class="sheet-close-btn" data-action="close-desktop-explainer" title="إغلاق الشرح" style="width:24px;height:24px;font-size:11px">✕</button>
+            <button class="sheet-close-btn" data-action="close-desktop-explainer" title="إغلاق الرسالة" style="width:26px;height:26px;font-size:12px;border-radius:50%;cursor:pointer">✕</button>
           </div>
           <div class="explainer-content" id="explainer-content">
             ${componentInspectorHTML()}
@@ -1325,23 +1433,7 @@ function renderPage() {
     const container = document.querySelector('#scene-container');
     world = new EnergyWorld3D(container, {
       onSelect: (id, type) => {
-        state.selectedId = id; state.selectedType = type;
-        const inspector = document.querySelector('#explainer-content') || document.querySelector('#component-inspector');
-        if (inspector) inspector.innerHTML = componentInspectorHTML(id);
-        const heading = document.querySelector('#explainer-heading');
-        if (heading) heading.textContent = `الشرح: ${getObjectName(id)}`;
-
-        const mInspector = document.querySelector('#m-explainer-content');
-        if (mInspector) mInspector.innerHTML = componentInspectorHTML(id);
-        const mHeading = document.querySelector('#m-explainer-heading');
-        if (mHeading) mHeading.textContent = `${getObjectName(id)}`;
-
-        if (window.innerWidth <= 860) {
-          document.querySelector('#mobile-explainer-sheet')?.classList.remove('hidden');
-          document.querySelector('#mobile-explainer-backdrop')?.classList.remove('hidden');
-        } else {
-          document.querySelector('#glass-explainer')?.classList.remove('hidden');
-        }
+        openExplainerMessage(id);
       },
       onTourChange: (stepIndex, stepData, isPlaying) => {
         syncTourUI(stepIndex, stepData, isPlaying);
@@ -1389,7 +1481,18 @@ function handleClick(event) {
   const pageButton = event.target.closest('[data-page]');
   if (pageButton) {
     const next = pageButton.dataset.page;
-    if (next && next !== state.page) { state.page = next; renderPage(); }
+    if (next === 'components') {
+      if (state.page !== 'lab') {
+        state.page = 'lab';
+        renderPage();
+      }
+      openExplainerMessage(state.selectedId || 'solar');
+      return;
+    }
+    if (next && next !== state.page) {
+      state.page = next;
+      renderPage();
+    }
     return;
   }
   const timelineStep = event.target.closest('[data-tour-step]');
@@ -1406,12 +1509,10 @@ function handleClick(event) {
   }
   const inspectButton = event.target.closest('[data-inspect]');
   if (inspectButton) {
-    state.selectedId = inspectButton.dataset.inspect;
-    state.selectedType = 'component';
-    state.page = 'lab';
-    renderPage();
+    const targetId = inspectButton.dataset.inspect;
     document.querySelector('#mobile-cables-sheet')?.classList.add('hidden');
     document.querySelector('#mobile-cables-backdrop')?.classList.add('hidden');
+    openExplainerMessage(targetId);
     return;
   }
   
@@ -1474,12 +1575,41 @@ function handleClick(event) {
         }
       }
       break;
-    case 'close-desktop-explainer':
-      document.querySelector('#glass-explainer')?.classList.add('hidden');
+    case 'speak-explainer':
+      {
+        const id = state.selectedId || 'solar';
+        const title = getObjectName(id);
+        let narration = '';
+        if (CABLE_SPECS[id]) {
+          narration = CABLE_SPECS[id].description;
+        } else {
+          const comp = COMPONENTS.find(c => c.id === id);
+          if (comp) {
+            narration = `${comp.description} الأهمية الهندسية والسريرية: ${comp.safety}`;
+          } else {
+            const dev = DEVICES.find(d => d.id === id);
+            if (dev) {
+              narration = `${dev.name}. جهاز طبي ضمن منظومة العناية المركزة بقدرة ${dev.watts} واط. يحميه نظام التغذية المعزول IPS لضمان عدم توقف دعم الحياة.`;
+            }
+          }
+        }
+        const textToSpeak = `رسالة شرح: ${title}. ${narration}`;
+        if (world && typeof world.speakNarration === 'function') {
+          world.speakNarration(textToSpeak);
+        } else if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(textToSpeak);
+          u.lang = 'ar-SA';
+          window.speechSynthesis.speak(u);
+        }
+      }
       break;
+    case 'close-desktop-explainer':
     case 'close-mobile-explainer':
+      document.querySelector('#glass-explainer')?.classList.add('hidden');
       document.querySelector('#mobile-explainer-sheet')?.classList.add('hidden');
       document.querySelector('#mobile-explainer-backdrop')?.classList.add('hidden');
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       break;
     case 'toggle-explainer':
       document.querySelector('#glass-explainer')?.classList.toggle('collapsed');
