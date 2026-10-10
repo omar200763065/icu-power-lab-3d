@@ -760,7 +760,7 @@ const MAT = {
 export const TOUR_STEPS = [
   {
     id: 'overview',
-    audioFile: './audio/step_0.mp3',
+    audioFile: './public/audio/step_0.mp3',
     title: 'نظرة شاملة على منظومة طاقة العناية المركزة',
     en: 'ICU Critical Power System Overview',
     camPos: new THREE.Vector3(12.5, 10.5, 13.5),
@@ -771,7 +771,7 @@ export const TOUR_STEPS = [
   },
   {
     id: 'solar',
-    audioFile: './audio/step_1.mp3',
+    audioFile: './public/audio/step_1.mp3',
     title: 'حقل الألواح الشمسية الكهروضوئية (PV Array)',
     en: 'Solar Photovoltaic Generation (2400 Wp)',
     camPos: new THREE.Vector3(-5.5, 4.4, 1.8),
@@ -782,7 +782,7 @@ export const TOUR_STEPS = [
   },
   {
     id: 'mppt',
-    audioFile: './audio/step_2.mp3',
+    audioFile: './public/audio/step_2.mp3',
     title: 'منظم الشحن الذكي بتقنية MPPT',
     en: 'Maximum Power Point Tracking Controller',
     camPos: new THREE.Vector3(-2.6, 2.8, -0.5),
@@ -793,7 +793,7 @@ export const TOUR_STEPS = [
   },
   {
     id: 'battery',
-    audioFile: './audio/step_3.mp3',
+    audioFile: './public/audio/step_3.mp3',
     title: 'كابينة بنك بطاريات الليثيوم (Rack Storage)',
     en: 'Lithium Battery Storage (9.6 kWh / 48V)',
     camPos: new THREE.Vector3(-2.2, 2.7, 3.5),
@@ -804,7 +804,7 @@ export const TOUR_STEPS = [
   },
   {
     id: 'inverter',
-    audioFile: './audio/step_4.mp3',
+    audioFile: './public/audio/step_4.mp3',
     title: 'العاكس الهجين ذو الموجة الجيبية النقية',
     en: 'Hybrid Pure Sine Wave Inverter (2000 W)',
     camPos: new THREE.Vector3(0.1, 2.9, -0.3),
@@ -815,7 +815,7 @@ export const TOUR_STEPS = [
   },
   {
     id: 'ats',
-    audioFile: './audio/step_5.mp3',
+    audioFile: './public/audio/step_5.mp3',
     title: 'مفتاح التحويل التلقائي السريع (Static ATS)',
     en: 'Automatic Transfer Switch (< 10 ms)',
     camPos: new THREE.Vector3(3.2, 2.9, -0.3),
@@ -826,7 +826,7 @@ export const TOUR_STEPS = [
   },
   {
     id: 'icu',
-    audioFile: './audio/step_6.mp3',
+    audioFile: './public/audio/step_6.mp3',
     title: 'سرير العناية المركزة والأجهزة الطبية الحيوية',
     en: 'ICU Bed & Critical Medical Equipment',
     camPos: new THREE.Vector3(6.5, 4.2, 5.2),
@@ -837,7 +837,7 @@ export const TOUR_STEPS = [
   },
   {
     id: 'outage-test',
-    audioFile: './audio/step_7.mp3',
+    audioFile: './public/audio/step_7.mp3',
     title: 'محاكاة عملية: اختبار انقطاع مفاجئ للشبكة',
     en: 'Live Grid Outage & Battery Support Test',
     camPos: new THREE.Vector3(7.5, 6.2, 9.5),
@@ -864,11 +864,15 @@ export function getAudioCandidateUrls(relPath) {
   const repoBase = repoName ? ('/' + repoName + '/') : '/';
 
   const list = [
-    origin + repoBase + 'audio/' + fileName,
     origin + repoBase + 'public/audio/' + fileName,
-    './audio/' + fileName,
+    origin + repoBase + 'audio/' + fileName,
     './public/audio/' + fileName,
+    './audio/' + fileName,
+    repoBase + 'public/audio/' + fileName,
+    repoBase + 'audio/' + fileName,
+    '/public/audio/' + fileName,
     '/audio/' + fileName,
+    'public/audio/' + fileName,
     'audio/' + fileName,
     relPath
   ];
