@@ -896,17 +896,9 @@ function openExplainerMessage(targetId = state.selectedId || 'solar') {
     desktopCard.classList.remove('collapsed');
   }
 
-  const mobileSheet = document.querySelector('#mobile-explainer-sheet');
-  const mobileContent = document.querySelector('#m-explainer-content');
-  const mobileHeading = document.querySelector('#m-explainer-heading');
-  const mobileBackdrop = document.querySelector('#mobile-explainer-backdrop');
-
-  if (mobileContent) mobileContent.innerHTML = html;
-  if (mobileHeading) mobileHeading.textContent = `رسالة الشرح: ${name}`;
-  if (mobileSheet && window.innerWidth <= 860) {
-    mobileSheet.classList.remove('hidden');
-    mobileBackdrop?.classList.remove('hidden');
-  }
+  // Never open a full-screen backdrop so the user is always free to interact with the 3D world!
+  document.querySelector('#mobile-explainer-sheet')?.classList.add('hidden');
+  document.querySelector('#mobile-explainer-backdrop')?.classList.add('hidden');
 }
 
 function labPage() {
@@ -975,7 +967,10 @@ function labPage() {
               <span class="g-icon" style="color:#38bdf8">💬</span>
               <strong id="explainer-heading">رسالة الشرح التفاعلي</strong>
             </div>
-            <button class="sheet-close-btn" data-action="close-desktop-explainer" title="إغلاق الرسالة" style="width:26px;height:26px;font-size:12px;border-radius:50%;cursor:pointer">✕</button>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button class="sheet-collapse-btn" data-action="toggle-explainer" title="تصغير / توسيع الرسالة" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#8da8c5;width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">▾</button>
+              <button class="sheet-close-btn" data-action="close-desktop-explainer" title="إغلاق الرسالة" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#8da8c5;width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">✕</button>
+            </div>
           </div>
           <div class="explainer-content" id="explainer-content">
             ${componentInspectorHTML()}
