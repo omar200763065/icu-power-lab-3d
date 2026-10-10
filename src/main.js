@@ -1983,4 +1983,17 @@ function exportReport() {
 function toast(message) { document.querySelector('.toast')?.remove();const el=document.createElement('div');el.className='toast';el.textContent=message;document.body.appendChild(el);if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.remove(),3200); }
 
 window.addEventListener('resize', drawChart);
+
+// Global Audio Unlock on first user gesture (ensures autoplay policy permits voice on mobile/desktop)
+function unlockGlobalAudio() {
+  try {
+    const dummy = new Audio();
+    dummy.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+    dummy.play().then(() => dummy.pause()).catch(() => {});
+  } catch (e) {}
+}
+window.addEventListener('pointerdown', unlockGlobalAudio, { once: true });
+window.addEventListener('keydown', unlockGlobalAudio, { once: true });
+
 shell();
+

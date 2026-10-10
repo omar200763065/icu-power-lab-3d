@@ -849,24 +849,36 @@ export const TOUR_STEPS = [
   }
 ];
 
-export function resolveAudioUrl(relPath) {
-  if (!relPath) return '';
+export function getAudioCandidateUrls(relPath) {
+  if (!relPath) return [];
   const clean = relPath.replace(/^(\.\/|\/)/, '');
-  if (typeof window === 'undefined') return relPath;
-  try {
-    const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) ? import.meta.env.BASE_URL : './';
-    const normalizedBase = base.endsWith('/') ? base : base + '/';
-    return new URL(clean, new URL(normalizedBase, window.location.href)).href;
-  } catch (e) {
-    try {
-      const path = window.location.pathname.endsWith('/')
-        ? window.location.pathname
-        : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-      return window.location.origin + path + clean;
-    } catch (e2) {
-      return relPath;
-    }
-  }
+  const fileName = clean.replace(/^.*[\/]/, '');
+
+  if (typeof window === 'undefined') return [relPath];
+
+  const loc = window.location;
+  const origin = loc.origin || '';
+  const pathname = loc.pathname || '/';
+  const pathParts = pathname.split('/').filter(Boolean);
+  const repoName = (pathParts.length > 0 && !pathParts[0].includes('.')) ? pathParts[0] : '';
+  const repoBase = repoName ? ('/' + repoName + '/') : '/';
+
+  const list = [
+    origin + repoBase + 'audio/' + fileName,
+    origin + repoBase + 'public/audio/' + fileName,
+    './audio/' + fileName,
+    './public/audio/' + fileName,
+    '/audio/' + fileName,
+    'audio/' + fileName,
+    relPath
+  ];
+
+  return [...new Set(list.filter(Boolean))];
+}
+
+export function resolveAudioUrl(relPath) {
+  const candidates = getAudioCandidateUrls(relPath);
+  return candidates[0] || relPath;
 }
 
 export class EnergyWorld3D {
@@ -2614,6 +2626,8 @@ export class EnergyWorld3D {
     this.stopAudio();
     if (!this.voiceEnabled) return;
 
+    const candidates = getAudioCandidateUrls(step.audioFile);
+    let candidateIndex = 0;
     let hasStartedAudio = false;
     const narrationText = step.narration;
 
@@ -2623,16 +2637,26 @@ export class EnergyWorld3D {
       this.speakNarration(narrationText);
     };
 
-    if (step.audioFile) {
-      const audioUrl = resolveAudioUrl(step.audioFile);
-      const audio = new Audio(audioUrl);
+    const tryCandidate = () => {
+      if (hasStartedAudio || !this.voiceEnabled) return;
+      if (candidateIndex >= candidates.length) {
+        console.warn('All audio file candidates failed, trying Arabic SpeechSynthesis:', candidates);
+        playFallbackTTS();
+        return;
+      }
+
+      const audioUrl = candidates[candidateIndex++];
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.src = audioUrl;
       this.currentAudio = audio;
 
       const fallbackTimer = setTimeout(() => {
-        if (!hasStartedAudio && this.tourPlaying) {
-          playFallbackTTS();
+        if (!hasStartedAudio && this.voiceEnabled) {
+          try { audio.pause(); } catch(e) {}
+          tryCandidate();
         }
-      }, 2000);
+      }, 1500);
 
       audio.addEventListener('playing', () => {
         hasStartedAudio = true;
@@ -2648,57 +2672,63 @@ export class EnergyWorld3D {
       }, { once: true });
 
       audio.addEventListener('error', (err) => {
-        console.warn('Audio file failed to load, switching to Arabic SpeechSynthesis:', audioUrl, err);
+        console.warn('Audio candidate failed to load:', audioUrl, err);
         clearTimeout(fallbackTimer);
-        playFallbackTTS();
+        tryCandidate();
       }, { once: true });
 
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(err => {
-          console.warn('Audio play() blocked by browser policy:', err);
+          console.warn('Audio play() rejected on candidate:', audioUrl, err);
           clearTimeout(fallbackTimer);
-          playFallbackTTS();
+          tryCandidate();
         });
       }
-    } else {
-      playFallbackTTS();
-    }
+    };
+
+    tryCandidate();
   }
 
   speakNarration(text) {
     if (!this.voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ar-SA';
-      utterance.rate = 0.95;
-      utterance.pitch = 1.0;
-
-      const voices = window.speechSynthesis.getVoices();
-      const arabicVoice = voices.find(v => v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar')));
-      if (arabicVoice) {
-        utterance.voice = arabicVoice;
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
       }
+      setTimeout(() => {
+        try {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'ar-SA';
+          utterance.rate = 0.95;
+          utterance.pitch = 1.0;
 
-      utterance.onend = () => {
-        if (this.tourPlaying) {
-          this.tourTimer = setTimeout(() => {
-            if (this.tourPlaying) this.nextTourStep();
-          }, 1400);
-        }
-      };
+          const voices = window.speechSynthesis.getVoices();
+          const arabicVoice = voices.find(v => v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar')));
+          if (arabicVoice) {
+            utterance.voice = arabicVoice;
+          }
 
-      utterance.onerror = (e) => {
-        console.warn('SpeechSynthesis error:', e);
-        if (this.tourPlaying) {
-          this.tourTimer = setTimeout(() => {
-            if (this.tourPlaying) this.nextTourStep();
-          }, 4000);
-        }
-      };
+          utterance.onend = () => {
+            if (this.tourPlaying) {
+              this.tourTimer = setTimeout(() => {
+                if (this.tourPlaying) this.nextTourStep();
+              }, 1400);
+            }
+          };
 
-      window.speechSynthesis.speak(utterance);
+          utterance.onerror = (e) => {
+            console.warn('SpeechSynthesis error:', e);
+            if (this.tourPlaying) {
+              this.tourTimer = setTimeout(() => {
+                if (this.tourPlaying) this.nextTourStep();
+              }, 4000);
+            }
+          };
+
+          window.speechSynthesis.speak(utterance);
+        } catch (e2) {}
+      }, 50);
     } catch (e) {
       console.warn('SpeechSynthesis failed:', e);
     }
